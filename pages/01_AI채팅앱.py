@@ -1,9 +1,50 @@
 import streamlit as st
 from openai import OpenAI
 
-# 페이지 기본 설정
-st.set_page_config(page_title="AI 정보 선생님", page_icon="🤖")
+# 페이지 기본 설정 (sidebar를 활용하기 위해 layout은 wide 또는 기본값 사용)
+st.set_page_config(page_title="AI 정보 선생님", page_icon="🤖", layout="wide")
+
 st.title("🤖 AI 정보 선생님")
+
+# ----------------------------------------------------
+# 📌 오른쪽(사이드바) 댓글/방명록 공간 만들기
+# ----------------------------------------------------
+with st.sidebar:
+    st.header("💬 방문객 방명록")
+    st.write("선생님께 한 마디씩 남겨주세요!")
+
+    # 세션 상태에 댓글 목록이 없으면 초기화
+    if "comments" not in st.session_state:
+        st.session_state.comments = []
+
+    # 댓글 입력 폼
+    with st.form("comment_form", clear_on_submit=True):
+        writer = st.text_input("이름 (닉네임)", placeholder="홍길동")
+        content = st.text_input("댓글 내용", placeholder="좋은 가르침 감사합니다!")
+        submitted = st.form_submit_button("댓글 남기기")
+
+        if submitted:
+            if writer.strip() and content.strip():
+                st.session_state.comments.append({"writer": writer, "content": content})
+                st.success("댓글이 등록되었습니다!")
+            else:
+                st.warning("이름과 내용을 모두 입력해 주세요.")
+
+    st.divider()
+
+    # 남겨진 댓글들을 아래로 스크롤하며 보여주기
+    st.subheader("📝 최근 댓글")
+    if st.session_state.comments:
+        # 최신 글이 위로 오도록 역순 출력
+        for c in reversed(st.session_state.comments):
+            st.markdown(f"**{c['writer']}**\n> {c['content']}")
+    else:
+        st.info("아직 등록된 댓글이 없습니다. 첫 댓글을 남겨보세요!")
+
+
+# ----------------------------------------------------
+# 🤖 AI 챗봇 본문 영역
+# ----------------------------------------------------
 
 # 비밀 금고(secrets)에서 API 키를 꺼내 접속 준비
 client = OpenAI(
@@ -40,7 +81,7 @@ if user_input:
     with st.chat_message("assistant"):
         try:
             stream = client.chat.completions.create(
-                model="solar-open2",                 # 모델 이름은 그대로 유지
+                model="solar-open2",                           # 모델 이름은 그대로 유지
                 messages=st.session_state.messages,  # 대화 전체를 함께 보내 기억 유지
                 reasoning_effort="none",             # 추론 끄기 -> 바로 답변 시작
                 stream=True,                         # 글자가 실시간으로 흐르게
